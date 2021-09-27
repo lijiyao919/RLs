@@ -41,7 +41,7 @@ def train():
                 state, reward, done, _ = env.step(UP)
             else:
                 state, reward, done, _ = env.step(DOWN)
-            # env.render()
+            env.render()
             agent.store_reward(reward)
             ep_reward += reward
             if reward != 0:  # Pong has either +1 or -1 reward exactly when game ends.

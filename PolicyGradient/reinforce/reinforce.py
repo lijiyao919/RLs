@@ -1,7 +1,8 @@
 import torch as T
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
-from cnn_policy import ReinforceNet
+#from cnn_policy import ReinforceNet
+from mlp_policy import MLP_Net
 from statistics import mean
 from utils import device
 
@@ -15,7 +16,6 @@ class ReinforceMemory(object):
         del self.rewards[:]
 
 
-
 class ReinforceAgent(object):
     def __init__(self, GAMMA=0.99, mini_batch=10, save_epoch=100, load_policy=False):
         self.gamma = GAMMA
@@ -23,7 +23,8 @@ class ReinforceAgent(object):
         self.save_epoch = save_epoch
 
         self.writer = SummaryWriter()
-        self.policy = ReinforceNet(self.writer).to(device)
+        #self.policy = ReinforceNet(self.writer).to(device)
+        self.policy = MLP_Net(self.writer).to(device)
         self.memo = ReinforceMemory()
         self.recent_rewards = []
 
