@@ -3,10 +3,7 @@ from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
 from cnn_policy import ReinforceNet
 from statistics import mean
-
-# Device configuration
-device = T.device('cuda' if T.cuda.is_available() else 'cpu')
-print('The device is: ', device)
+from utils import device
 
 class ReinforceMemory(object):
     def __init__(self):
@@ -18,22 +15,25 @@ class ReinforceMemory(object):
         del self.rewards[:]
 
 
+
 class ReinforceAgent(object):
-    def __init__(self, GAMMA=0.99, mini_batch=10, save_epoch=100, load_policy=False, tb_dir="data"):
+    def __init__(self, GAMMA=0.99, mini_batch=10, save_epoch=100, load_policy=False):
         self.gamma = GAMMA
         self.mini_batch = mini_batch
         self.save_epoch = save_epoch
 
-        self.policy = ReinforceNet().to(device)
+        self.writer = SummaryWriter()
+        self.policy = ReinforceNet(self.writer).to(device)
         self.memo = ReinforceMemory()
-        self.writer = SummaryWriter(tb_dir)
         self.recent_rewards = []
 
         if load_policy:
             self.policy.load_checkpoint()
 
+        self.policy.traceWeight(0)
+        self.policy.traceBias(0)
+
     def select_action(self, state):
-        state = state.to(device)
         probs = self.policy(state)
         # print(probs)
         m = Categorical(probs)
@@ -70,6 +70,9 @@ class ReinforceAgent(object):
             self.writer.add_scalar("Loss/train", policy_loss, epoch)
             self.policy.optimizer.step()
             self.policy.optimizer.zero_grad()
+            #trance policy parameters
+            self.policy.traceWeight(epoch)
+            self.policy.traceBias(epoch)
         if epoch % self.save_epoch == 0:
             self.policy.save_checkpoint()
 

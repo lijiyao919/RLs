@@ -1,4 +1,3 @@
-import cv2
 import gym
 import torch as T
 from itertools import count
@@ -15,8 +14,12 @@ DOWN = 5
 
 
 def prepro(I):
-    I = cv2.cvtColor(I, cv2.COLOR_BGR2GRAY)  # from RGB to Gray scale
-    I = I[33:193, 16:144]  # crop the pictuire from 210*160 to 160*130
+    """ using Karpathy's code, prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
+    I = I[35:195]  # crop
+    I = I[::2, ::2, 0]  # downsample by factor of 2
+    I[I == 144] = 0  # erase background (background type 1)
+    I[I == 109] = 0  # erase background (background type 2)
+    I[I != 0] = 1  # everything else (paddles, ball) just set to 1
     return I
 
 def train():
@@ -33,7 +36,6 @@ def train():
             residual_state = cur_state - prev_state if prev_state is not None else cur_state
             prev_state = cur_state
 
-            residual_state = T.from_numpy(residual_state).float().unsqueeze(0).unsqueeze(0)
             action = agent.select_action(residual_state)
             if action == 0:
                 state, reward, done, _ = env.step(UP)

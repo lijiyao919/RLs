@@ -3,31 +3,60 @@ import torch as T
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import numpy as np
+from utils import device
 
 class ReinforceNet(nn.Module):
-    def __init__(self, chkpt_dir='checkpoints'):
+    def __init__(self, tb_writer, chkpt_dir='checkpoints'):
         super(ReinforceNet, self).__init__()
-        self.conve1 = nn.Sequential(nn.Conv2d(1, 16, kernel_size=8, stride=4), nn.ReLU())
-        self.conve2 = nn.Sequential(nn.Conv2d(16, 32, kernel_size=3, stride=2), nn.ReLU())
-        self.fc1 = nn.Sequential(nn.Linear(19 * 15 * 32, 256), nn.ReLU())
-        self.fc2 = nn.Sequential(nn.Linear(256, 2), nn.Softmax(dim=1))
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=8, stride=4)      #16*19*19
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=3)     #32*6*6
+        self.fc1 = nn.Linear(32*6*6, 256)
+        self.fc2 = nn.Linear(256, 2)
 
         self.optimizer = optim.RMSprop(self.parameters(), lr=0.0001)
         # self.optimizer = optim.SGD(self.__policy.parameters(), lr=0.0001)  # 0.01 for method2, 3, online learn
         self.optimizer.zero_grad()
 
         self.checkpoint_file = os.path.join(chkpt_dir, 'reinforce_cnn.pth')
+        self.writer = tb_writer
 
     def forward(self, x):
-        x = self.conve1(x)
-        x = self.conve2(x)
+        x = T.from_numpy(x).float().unsqueeze(0).unsqueeze(0).to(device)
+        x = self.conv1(x)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x)
         x = x.reshape(x.size(0), -1)
         x = self.fc1(x)
+        x = F.relu(x)
         action_scores = self.fc2(x)
-        return action_scores
+        return F.softmax(action_scores, dim=1)
 
     def save_checkpoint(self):
         T.save(self.state_dict(), self.checkpoint_file)
 
     def load_checkpoint(self):
         self.load_state_dict(T.load(self.checkpoint_file))
+
+    def traceWeight(self, epoch):
+        self.writer.add_histogram('conv1.weight', self.conv1.weight, epoch)
+        self.writer.add_histogram('conv2.weight', self.conv2.weight, epoch)
+        self.writer.add_histogram('fc1.weight', self.fc1.weight, epoch)
+        self.writer.add_histogram('fc2.weight', self.fc2.weight, epoch)
+
+    def traceBias(self, epoch):
+        self.writer.add_histogram('conv1.bias', self.conv1.bias, epoch)
+        self.writer.add_histogram('conv2.bias', self.conv2.bias, epoch)
+        self.writer.add_histogram('fc1.bias', self.fc1.bias, epoch)
+        self.writer.add_histogram('fc2.bias', self.fc2.bias, epoch)
+
+    def traceGrad(self, epoch):
+        self.writer.add_histogram('conv1.weight.grad', self.conv1.weight.grad, epoch)
+        self.writer.add_histogram('conv1.bias.grad', self.conv1.bias.grad, epoch)
+        self.writer.add_histogram('conv2.weight.grad', self.conv2.weight.grad, epoch)
+        self.writer.add_histogram('conv2.bias.grad', self.conv2.bias.grad, epoch)
+        self.writer.add_histogram('fc1.weight.grad', self.fc1.weight.grad, epoch)
+        self.writer.add_histogram('fc1.bias.grad', self.fc1.bias.grad, epoch)
+        self.writer.add_histogram('fc2.weight.grad', self.fc2.weight.grad, epoch)
+        self.writer.add_histogram('fc2.bias.grad', self.fc2.bias.grad, epoch)
