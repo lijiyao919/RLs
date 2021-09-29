@@ -23,7 +23,7 @@ def prepro(I):
     return I
 
 def train():
-    agent = ReinforceAgent(80*80, 2)
+    agent = ReinforceAgent(80*80, 2, 0.0001)
     agent.train_mode()
     prev_state = None
 
@@ -43,7 +43,7 @@ def train():
                 state, reward, done, _ = env.step(UP)
             else:
                 state, reward, done, _ = env.step(DOWN)
-            #env.render()
+            env.render()
             agent.store_reward(reward)
             ep_reward += reward
             if reward != 0:  # Pong has either +1 or -1 reward exactly when game ends.

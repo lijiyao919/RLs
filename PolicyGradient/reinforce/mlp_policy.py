@@ -6,12 +6,12 @@ import torch.nn.functional as F
 import numpy as np
 
 class MLP_Net(nn.Module):
-    def __init__(self, input_dims, n_actions, tb_writer, chkpt_dir='checkpoints'):
+    def __init__(self, input_dims, n_actions, eta, tb_writer, chkpt_dir='checkpoints'):
         super(MLP_Net, self).__init__()
         self.fc1 = nn.Linear(input_dims, 256)
         self.fc2 = nn.Linear(256, n_actions)
 
-        self.optimizer = optim.RMSprop(self.parameters(), lr=0.0001)
+        self.optimizer = optim.RMSprop(self.parameters(), lr=eta)
         # self.optimizer = optim.SGD(self.__policy.parameters(), lr=0.0001)  # 0.01 for method2, 3, online learn
         self.optimizer.zero_grad()
 
