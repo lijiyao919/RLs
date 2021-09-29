@@ -17,12 +17,12 @@ class ReinforceMemory(object):
 
 
 class ReinforceAgent(object):
-    def __init__(self, input_dims, n_actions, GAMMA=0.99, mini_batch=10, save_epoch=100, load_policy=False):
+    def __init__(self, input_dims, n_actions, GAMMA=0.99, mini_batch=10, save_epoch=100, load_policy=False, tb_folder="runs\\mlp_reinforce"):
         self.gamma = GAMMA
         self.mini_batch = mini_batch
         self.save_epoch = save_epoch
 
-        self.writer = SummaryWriter()
+        self.writer = SummaryWriter(tb_folder)
         # self.policy = CNN_Net(self.writer).to(device)
         self.policy = MLP_Net(input_dims, n_actions, self.writer).to(device)
         self.memo = ReinforceMemory()
