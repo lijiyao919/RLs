@@ -17,9 +17,9 @@ class ReinforceMemory(object):
 
 
 class ReinforceAgent(object):
-    def __init__(self, input_dims, n_actions, GAMMA=0.99, mini_batch=10, save_epoch=100, load_policy=False, tb_folder="runs\\mlp_reinforce"):
+    def __init__(self, input_dims, n_actions, GAMMA=0.99, episode_batch=10, save_epoch=100, load_policy=False, tb_folder="runs\\mlp_reinforce"):
         self.gamma = GAMMA
-        self.mini_batch = mini_batch
+        self.episode_batch = episode_batch
         self.save_epoch = save_epoch
 
         self.writer = SummaryWriter(tb_folder)
@@ -65,9 +65,9 @@ class ReinforceAgent(object):
         policy_loss = -log_probs * Avantage
         ######################################################
         self.memo.clear_memory()
-        policy_loss = policy_loss.sum() / self.mini_batch
+        policy_loss = policy_loss.sum() / self.episode_batch
         policy_loss.backward()
-        if epoch % self.mini_batch == 0:
+        if epoch % self.episode_batch == 0:
             self.writer.add_scalar("Loss/train", policy_loss, epoch)
             self.policy.optimizer.step()
             self.policy.optimizer.zero_grad()
@@ -85,7 +85,7 @@ class ReinforceAgent(object):
         if len(self.recent_rewards) > 30:
             self.recent_rewards.pop(0)
         aver_reward = mean(self.recent_rewards)
-        if epoch % self.mini_batch == 0:
+        if epoch % self.episode_batch == 0:
             self.writer.add_scalar("The Average Reward (recent 30 episodes)", aver_reward, epoch)
         print('Episode {}\tReward: {:.2f}\tThe Average Reward (recent 30 episodes): {:.2f}'.format(epoch, ep_reward, aver_reward))
 
