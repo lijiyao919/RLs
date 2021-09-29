@@ -6,12 +6,13 @@ import torch.nn.functional as F
 import numpy as np
 
 class MLP_Net(nn.Module):
-    def __init__(self, input_dims, n_actions, tb_writer, chkpt_dir='checkpoints'):
+    def __init__(self, input_dims, n_actions, eta, tb_writer, chkpt_dir='checkpoints'):
         super(MLP_Net, self).__init__()
-        self.fc1 = nn.Linear(input_dims, 256)
-        self.fc2 = nn.Linear(256, n_actions)
+        self.fc1 = nn.Linear(80*80, 256)
+        # self.fc2 = nn.Linear(256, 256)
+        self.fc3 = nn.Linear(256, 2)
 
-        self.optimizer = optim.RMSprop(self.parameters(), lr=0.0001)
+        self.optimizer = optim.RMSprop(self.parameters(), lr=eta)    #0.0001
         # self.optimizer = optim.SGD(self.__policy.parameters(), lr=0.0001)  # 0.01 for method2, 3, online learn
         self.optimizer.zero_grad()
 
@@ -19,9 +20,10 @@ class MLP_Net(nn.Module):
         self.writer = tb_writer
 
     def forward(self, x):
+        x = T.from_numpy(np.expand_dims(x.astype(np.float32).ravel(), axis=0))
         x = self.fc1(x)
         x = T.sigmoid(x)
-        action_scores = self.fc2(x)
+        action_scores = self.fc3(x)
         return F.softmax(action_scores, dim=1)
 
     def save_checkpoint(self):
@@ -32,14 +34,18 @@ class MLP_Net(nn.Module):
 
     def traceWeight(self, epoch):
         self.writer.add_histogram('fc1.weight', self.fc1.weight, epoch)
-        self.writer.add_histogram('fc2.weight', self.fc2.weight, epoch)
+        #self.writer.add_histogram('fc2.weight', self.fc2.weight, epoch)
+        self.writer.add_histogram('fc3.weight', self.fc3.weight, epoch)
 
     def traceBias(self, epoch):
         self.writer.add_histogram('fc1.bias', self.fc1.bias, epoch)
-        self.writer.add_histogram('fc2.bias', self.fc2.bias, epoch)
+        #self.writer.add_histogram('fc2.bias', self.fc2.bias, epoch)
+        self.writer.add_histogram('fc3.bias', self.fc3.bias, epoch)
 
     def traceGrad(self, epoch):
         self.writer.add_histogram('fc1.weight.grad', self.fc1.weight.grad, epoch)
         self.writer.add_histogram('fc1.bias.grad', self.fc1.bias.grad, epoch)
-        self.writer.add_histogram('fc2.weight.grad', self.fc2.weight.grad, epoch)
-        self.writer.add_histogram('fc2.bias.grad', self.fc2.bias.grad, epoch)
+       # self.writer.add_histogram('fc2.weight.grad', self.fc2.weight.grad, epoch)
+       # self.writer.add_histogram('fc2.bias.grad', self.fc2.bias.grad, epoch)
+        self.writer.add_histogram('fc3.weight.grad', self.fc3.weight.grad, epoch)
+        self.writer.add_histogram('fc3.bias.grad', self.fc3.bias.grad, epoch)

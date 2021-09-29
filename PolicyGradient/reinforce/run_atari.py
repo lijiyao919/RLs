@@ -1,9 +1,9 @@
 import gym
 import torch as T
 from itertools import count
-
+import numpy as np
 from reinforce import ReinforceAgent
-
+from utils import device
 #Game Setup
 env = gym.make('Pong-v0')
 env.seed(543)
@@ -23,7 +23,7 @@ def prepro(I):
     return I
 
 def train():
-    agent = ReinforceAgent()
+    agent = ReinforceAgent(80*80, 2)
     agent.train_mode()
     prev_state = None
 
@@ -36,12 +36,14 @@ def train():
             residual_state = cur_state - prev_state if prev_state is not None else cur_state
             prev_state = cur_state
 
+            # residual_state = T.from_numpy(residual_state).float().unsqueeze(0).unsqueeze(0).to(device) #for cnn
+            residual_state = T.from_numpy(np.expand_dims(residual_state.astype(np.float32).ravel(), axis=0)).to(device)
             action = agent.select_action(residual_state)
             if action == 0:
                 state, reward, done, _ = env.step(UP)
             else:
                 state, reward, done, _ = env.step(DOWN)
-            env.render()
+            #env.render()
             agent.store_reward(reward)
             ep_reward += reward
             if reward != 0:  # Pong has either +1 or -1 reward exactly when game ends.

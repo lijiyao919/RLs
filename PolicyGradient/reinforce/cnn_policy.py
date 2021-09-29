@@ -5,9 +5,9 @@ import torch.optim as optim
 import torch.nn.functional as F
 from utils import device
 
-class ReinforceNet(nn.Module):
+class CNN_Net(nn.Module):
     def __init__(self, tb_writer, chkpt_dir='checkpoints'):
-        super(ReinforceNet, self).__init__()
+        super(CNN_Net, self).__init__()
         self.conv1 = nn.Conv2d(1, 16, kernel_size=8, stride=4)      #16*19*19
         self.conv2 = nn.Conv2d(16, 32, kernel_size=4, stride=3)     #32*6*6
         self.fc1 = nn.Linear(32*6*6, 256)
@@ -21,7 +21,6 @@ class ReinforceNet(nn.Module):
         self.writer = tb_writer
 
     def forward(self, x):
-        x = T.from_numpy(x).float().unsqueeze(0).unsqueeze(0).to(device)
         x = self.conv1(x)
         x = F.relu(x)
         x = self.conv2(x)
