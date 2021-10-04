@@ -20,11 +20,10 @@ class MLP_Net(nn.Module):
         self.writer = tb_writer
 
     def forward(self, x):
-        x = T.from_numpy(np.expand_dims(x.astype(np.float32).ravel(), axis=0))
         x = self.fc1(x)
         x = T.sigmoid(x)
         action_scores = self.fc3(x)
-        return F.softmax(action_scores, dim=1)
+        return F.softmax(action_scores, dim=-1)
 
     def save_checkpoint(self):
         T.save(self.state_dict(), self.checkpoint_file)
