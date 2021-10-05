@@ -34,7 +34,7 @@ class PPOMemory:
         del self.rewards[:]
 
 class PPOAgent(object):
-    def __init__(self, input_dims, n_actions, eta, gamma=0.99, epsilon=0.2, batch_size=10000, n_epoch=10):
+    def __init__(self, input_dims, n_actions, eta, gamma=0.99, epsilon=0.2, batch_size=64, n_epoch=10):
         self.gamma = gamma
         self.epsilon = epsilon
         self.n_epoch = n_epoch
@@ -43,6 +43,7 @@ class PPOAgent(object):
         self.policy = MLP_Net(input_dims, n_actions, eta, self.writer).to(device)
         self.memo = PPOMemory(batch_size)
         self.recent_rewards = []
+
 
     def collect_experience(self, state, action, log_probs, reward):
         self.memo.store_memory(state, action, log_probs, reward)
@@ -68,7 +69,7 @@ class PPOAgent(object):
                 r = r_pi
             returns.insert(0, r)
         returns = T.tensor(returns, device=device)
-        Avantage = (returns - returns.mean()) / returns.std()
+        Avantage = (returns - returns.mean()) / (returns.std()+T.tensor(1e-5, device=device))
 
         for _ in range(self.n_epoch):
             for batch in batches:
