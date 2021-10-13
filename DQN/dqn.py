@@ -33,7 +33,11 @@ class DQNAgent(object):
         self.target_update = target_update_feq
 
         self.writer = SummaryWriter()
-        self.policy_net = Deep_Q_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
+        self.policy_net = Deep_Q_Network(input_dims, n_actions, fc1_dims, eta, self.writer)
+        if T.cuda.device_count() > 1:
+            print("Let's use", T.cuda.device_count(), "GPUs!")
+            self.policy_net = nn.DataParallel(self.policy_net)
+        self.policy_net.to(device)
         self.target_net = Deep_Q_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
