@@ -58,7 +58,8 @@ class DQNAgent(object):
         self.steps_done +=1
 
         if random_num > eps_thredhold:
-            return self.policy_net(state).max(1)[1].view(1,1)
+            with T.no_grad():
+                return self.policy_net(state).max(1)[1].view(1,1)
         else:
             return T.tensor([[random.randrange(self.action_space)]], device=device)
 
