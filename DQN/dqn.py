@@ -98,11 +98,14 @@ class DQNAgent(object):
         if self.steps_done % self.target_update == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        # trance policy parameters
-        self.policy_net.traceWeight(epoch)
-        self.policy_net.traceBias(epoch)
-        self.policy_net.traceGrad(epoch)
+        #trace Q value
         self.record_Q_value(state_action_values, epoch, done)
+        # trance policy_net parameters
+        if done:
+            self.policy_net.traceWeight(epoch)
+            self.policy_net.traceBias(epoch)
+            self.policy_net.traceGrad(epoch)
+
 
     def calcPerformance(self, ep_reward, epoch):
         self.recent_rewards.append(ep_reward)
