@@ -4,9 +4,9 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
 
-class Deep_Q_Network(nn.Module):
+class MLP_Network(nn.Module):
     def __init__(self, input_dims, n_actions, fc1_dims, eta, tb_writer, chkpt_dir='checkpoints'):
-        super(Deep_Q_Network, self).__init__()
+        super(MLP_Network, self).__init__()
         self.fc1 = nn.Linear(input_dims, fc1_dims)
         self.fc3 = nn.Linear(fc1_dims, n_actions)
 
