@@ -20,7 +20,7 @@ def train():
             state = state.astype(np.float32)
             state_tensor = T.from_numpy(np.expand_dims(state, axis=0)).to(device)
             action_tensor = agent.select_action(state_tensor)
-            state, reward, done, _ = env.step(action_tensor.item())
+            state, reward, done, info = env.step(action_tensor.item())
             #env.render()
 
             reward_torch = T.tensor([reward], device=device)
@@ -30,9 +30,10 @@ def train():
             ep_reward += reward
             agent.learn(i_episode, done)
             if done:
+                agent.calcPerformance(ep_reward, i_episode)
+                agent.flushTBSummary()
                 break
-        agent.calcPerformance(ep_reward, i_episode)
-        agent.flushTBSummary()
+    env.close()
 
 if __name__ == '__main__':
     train()
