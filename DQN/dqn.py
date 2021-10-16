@@ -1,7 +1,8 @@
 from collections import namedtuple
 from collections import deque
 from torch.utils.tensorboard import SummaryWriter
-from mlp_net import MLP_Network
+#from mlp_net import MLP_Network
+from cnn_net import CNN_Network
 import torch as T
 import random
 import math
@@ -25,7 +26,7 @@ class ReplayBuffer(object):
         return len(self.buffer)
 
 class DQNAgent(object):
-    def __init__(self, input_dims, n_actions, fc1_dims, eta, buffer_size=10000, batch_size=32, gamma=0.99, target_update_feq=100):
+    def __init__(self, input_dims, n_actions, fc1_dims, eta, buffer_size=10000, batch_size=32, gamma=0.99, target_update_feq=1000):
         self.replay_buffer = ReplayBuffer(buffer_size)
         self.action_space = n_actions
         self.gamma = gamma
@@ -33,18 +34,19 @@ class DQNAgent(object):
         self.target_update = target_update_feq
 
         self.writer = SummaryWriter()
-        self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer)
-        if T.cuda.device_count() > 1:
-            print("Let's use", T.cuda.device_count(), "GPUs!")
-            self.policy_net = nn.DataParallel(self.policy_net)
-        self.policy_net.to(device)
-        self.target_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
+        #self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer)
+        self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
+        #if T.cuda.device_count() > 1:
+        #    print("Let's use", T.cuda.device_count(), "GPUs!")
+        #    self.policy_net = nn.DataParallel(self.policy_net)
+        #self.target_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
+        self.target_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
         self.eps_start = 1
-        self.eps_end = 0.05
-        self.eps_decay = 10000
+        self.eps_end = 0.1            #0.05 gym
+        self.eps_decay = 1000000      #10000 gym
         self.steps_done = 0
 
         self.recent_rewards = []
@@ -70,13 +72,13 @@ class DQNAgent(object):
         #handling samples from
         samples = self.replay_buffer.sample(self.batch_size)
         batch = Transition(*zip(*samples))
-        state_batch = T.cat(batch.state)
+        state_batch = T.cat(batch.state).to(device)
         action_batch = T.cat(batch.action)
         reward_batch = T.cat(batch.reward)
 
         non_final_mask = T.tensor(tuple(map(lambda x: x is not None, batch.next_state)), device=device, dtype=T.bool)
 
-        non_final_next_state_batch = T.cat([s for s in batch.next_state if s is not None])
+        non_final_next_state_batch = T.cat([s for s in batch.next_state if s is not None]).to(device)
 
         #compute state action values
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
