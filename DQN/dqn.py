@@ -36,9 +36,6 @@ class DQNAgent(object):
         self.writer = SummaryWriter()
         #self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
         self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
-        #if T.cuda.device_count() > 1:
-        #    print("Let's use", T.cuda.device_count(), "GPUs!")
-        #    self.policy_net = nn.DataParallel(self.policy_net)
         #self.target_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
         self.target_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
