@@ -14,7 +14,7 @@ class MLP_Network(nn.Module):
         # self.optimizer = optim.SGD(self.__policy.parameters(), lr=0.0001)  # 0.01 for method2, 3, online learn
         self.optimizer.zero_grad()
 
-        self.checkpoint_file = os.path.join(chkpt_dir, 'deep_q_network.pth')
+        self.checkpoint_file = os.path.join(chkpt_dir, 'mlp_dqn.pth')
         self.writer = tb_writer
 
     def forward(self, x):

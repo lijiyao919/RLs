@@ -34,7 +34,7 @@ class DQNAgent(object):
         self.target_update = target_update_feq
 
         self.writer = SummaryWriter()
-        #self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer)
+        #self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
         self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
         #if T.cuda.device_count() > 1:
         #    print("Let's use", T.cuda.device_count(), "GPUs!")
@@ -50,6 +50,7 @@ class DQNAgent(object):
         self.steps_done = 0
 
         self.recent_rewards = []
+        self.q_arr = []
 
     def store_exp(self, *args):
         self.replay_buffer.push(*args)
@@ -100,6 +101,9 @@ class DQNAgent(object):
         if self.steps_done % self.target_update == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
+        if epoch % 100 == 0:
+            self.policy_net.save_checkpoint()
+
         #trace Q value
         self.record_Q_value(state_action_values, epoch, done)
         # trance policy_net parameters
@@ -119,11 +123,11 @@ class DQNAgent(object):
         print('Episode {}\tReward: {:.2f}\tThe Average Reward (recent 30 episodes): {:.2f}'.format(epoch, ep_reward, aver_reward))
 
     def record_Q_value(self, q_values, epoch, done):
-        q_arr = []
         mean_q_value = T.mean(T.cat(tuple(q_values.detach()))).item()
-        q_arr.append(mean_q_value)
+        self.q_arr.append(mean_q_value)
         if done:
-            self.writer.add_scalar("The Average Q value", mean(q_arr), epoch)
+            self.writer.add_scalar("The Average Q value", mean(self.q_arr), epoch)
+            del self.q_arr[:]
 
     def flushTBSummary(self):
         self.writer.flush()
