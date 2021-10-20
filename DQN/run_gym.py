@@ -10,7 +10,7 @@ env.seed(0)
 TARGET_UPDATE = 10
 
 def train():
-    agent = DQNAgent(4, env.action_space.n, 256, 0.001)
+    agent = DQNAgent(4, env.action_space.n, 256, 0.001, batch_size=128, target_update_feq=100)
     agent.train_mode()
 
     for i_episode in count(1):
