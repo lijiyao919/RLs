@@ -9,6 +9,7 @@ import math
 from utils import device
 import torch.nn as nn
 from statistics import mean
+from utils import DDQN
 
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state')) #Transition is a class, not object
 
@@ -81,7 +82,11 @@ class DQNAgent(object):
         #compute state action values
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
         next_state_action_values = T.zeros(self.batch_size, device=device)
-        next_state_action_values[non_final_mask] = self.target_net(non_final_next_state_batch).max(1)[0].detach()
+        if DDQN:
+            next_state_action_values[non_final_mask] = self.target_net(non_final_next_state_batch).gather(1, \
+                        self.policy_net(non_final_next_state_batch).max(1)[1].view(self.batch_size,1)).detach().view(self.batch_size)
+        else:
+            next_state_action_values[non_final_mask] = self.target_net(non_final_next_state_batch).max(1)[0].detach()
         target_state_action_values = next_state_action_values*self.gamma+reward_batch
 
         #compute huber loss and optimize
