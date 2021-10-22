@@ -32,3 +32,6 @@ class Environment(object):
 
     def get_random_action(self):
         return self._env.action_space.sample()
+
+    def render(self):
+        self._env.render()
