@@ -13,6 +13,12 @@ class CNN_Network(nn.Module):
         self.fc1 = nn.Linear(64*7*7, 512)
         self.fc2 = nn.Linear(512, n_actions)
 
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.xavier_normal_(m.weight)
+            elif isinstance(m, nn.Linear):
+                nn.init.xavier_normal_(m.weight)
+
         self.optimizer = optim.RMSprop(self.parameters(), lr=eta)  # 0.0001
 
         self.checkpoint_file = os.path.join(chkpt_dir, 'cnn_dqn.pth')
