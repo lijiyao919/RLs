@@ -23,7 +23,7 @@ def train():
 
             next_state, reward, done, _ = env.step(action_torch.item())
 
-            next_state_torch = T.tensor([next_state], dtype=T.float32)
+            next_state_torch = T.tensor([next_state], dtype=T.float32) if not done else None
             reward_torch = T.tensor([reward], device=device)
             agent.store_exp(state_torch, action_torch, reward_torch, next_state_torch)
 

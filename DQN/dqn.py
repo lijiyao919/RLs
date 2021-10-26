@@ -83,8 +83,8 @@ class DQNAgent(object):
         state_action_values = self.policy_net(state_batch).gather(1, action_batch)
         next_state_action_values = T.zeros(self.batch_size, device=device)
         if DDQN:
-            next_state_action_values[non_final_mask] = self.target_net(non_final_next_state_batch).gather(1, \
-                        self.policy_net(non_final_next_state_batch).max(1)[1].view(self.batch_size,1)).detach().view(self.batch_size)
+            max_act = self.policy_net(non_final_next_state_batch).max(1)[1].view(non_final_next_state_batch.size()[0], 1)
+            next_state_action_values[non_final_mask] = self.target_net(non_final_next_state_batch).gather(1, max_act).detach().view(max_act.size()[0])
         else:
             next_state_action_values[non_final_mask] = self.target_net(non_final_next_state_batch).max(1)[0].detach()
         target_state_action_values = next_state_action_values*self.gamma+reward_batch
