@@ -6,3 +6,6 @@ print('The device is: ', device)
 
 #Double DQN
 DDQN = True
+
+#Dueling DQN
+DUELING = True
