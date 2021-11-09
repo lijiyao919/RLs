@@ -20,10 +20,10 @@ def train():
         while True:
             step += 1
             state_tensor = T.from_numpy(np.expand_dims(state.astype(np.float32), axis=0)).to(device)
-            action, log_prob = agent.select_action(state_tensor)
+            action, log_prob, entropy = agent.select_action(state_tensor)
             next_state, reward, done, _ = env.step(action)
             #env.render()
-            agent.store_exp(state, log_prob, reward, next_state, done)
+            agent.store_exp(state, log_prob, reward, next_state, done, entropy)
             ep_reward += reward
             if agent.store_size() == BATCH_SIZE:
                 agent.learn(step)

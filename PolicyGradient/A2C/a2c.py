@@ -21,13 +21,16 @@ class A2CMemory(object):
         self.rewards = []
         self.dones = []
         self.last_state = None
+        self.total_entropy = 0
 
-    def store_memory(self, state, log_prob, reward, next_state, done):
+    def store_memory(self, state, log_prob, reward, next_state, done, entropy):
         self.states.append(state)
         self.log_probs.append(log_prob)
         self.rewards.append(reward)
         self.dones.append(done)
         self.last_state = next_state
+        self.total_entropy += entropy
+        #print(self.total_entropy)
 
     def clear(self):
         del self.states[:]
@@ -35,6 +38,7 @@ class A2CMemory(object):
         del self.rewards[:]
         del self.dones[:]
         self.last_state = None
+        self.total_entropy = 0
 
     def __len__(self):
         return len(self.dones)
@@ -53,8 +57,8 @@ class A2Cgent(object):
         self.recent_rewards = []
         self.q_arr = []
 
-    def store_exp(self, state, log_prob, reward, next_state, done):
-        self.memo.store_memory(state, log_prob, reward, next_state, done)
+    def store_exp(self, state, log_prob, reward, next_state, done, entropy):
+        self.memo.store_memory(state, log_prob, reward, next_state, done, entropy)
 
     def store_size(self):
         return len(self.memo)
@@ -64,7 +68,7 @@ class A2Cgent(object):
         dist = Categorical(probs)
         action = dist.sample()
         log_probs = dist.log_prob(action)
-        return action.item(), log_probs
+        return action.item(), log_probs, dist.entropy().mean()
 
     def learn(self, step):
         state_tensor = T.tensor(self.memo.states, device=device, dtype=T.float32)
@@ -88,14 +92,11 @@ class A2Cgent(object):
         #compute loss
         self.writer.add_scalar("V", V.mean(), step)
         advantage = R - V
-        #print(advantage)
-        #print(log_prob_tensor)
-        #print(self.log_prob)
         actor_loss = (-log_prob_tensor*advantage.detach()).mean()
         self.writer.add_scalar("actor loss", actor_loss, step)
         critic_loss = advantage.pow(2).mean()
         self.writer.add_scalar("critic loss", critic_loss, step)
-        loss = actor_loss + 0.5*critic_loss
+        loss = actor_loss + 0.5*critic_loss - 0.001*self.memo.total_entropy
 
         self.policy_net.optimizer.zero_grad()
         loss.backward()
