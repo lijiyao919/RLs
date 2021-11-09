@@ -14,7 +14,7 @@ class Environment(object):
 
     def reset(self):
         observation = self._env.reset()
-        return np.rollaxis(np.array(observation), 2)
+        return np.rollaxis(np.array(observation), 2)   # for pytorch convert (from HWC to CHW)
 
     def step(self, action):
         if not self._env.action_space.contains(action):
@@ -27,7 +27,7 @@ class Environment(object):
 
     def get_observation_space(self):
         shape = self._env.observation_space.shape
-        self._env.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=(shape[-1], shape[0], shape[1]), dtype=np.uint8)
+        self._env.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=(shape[-1], shape[0], shape[1]), dtype=np.uint8) # for pytorch convert (from HWC to CHW)
         return self._env.observation_space
 
     def get_random_action(self):
