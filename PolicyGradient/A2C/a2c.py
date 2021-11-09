@@ -91,7 +91,7 @@ class A2Cgent(object):
         #print(advantage)
         #print(log_prob_tensor)
         #print(self.log_prob)
-        actor_loss = (-log_prob_tensor*advantage).mean()
+        actor_loss = (-log_prob_tensor*advantage.detach()).mean()
         self.writer.add_scalar("actor loss", actor_loss, step)
         critic_loss = advantage.pow(2).mean()
         self.writer.add_scalar("critic loss", critic_loss, step)

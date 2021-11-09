@@ -7,7 +7,7 @@ from utils import device
 
 env = gym.make('CartPole-v0')
 env.seed(0)
-BATCH_SIZE = 10
+BATCH_SIZE = 5
 
 def train():
     agent = A2Cgent(env.observation_space.shape[0], env.action_space.n, 40, 40, 0.001, BATCH_SIZE)
