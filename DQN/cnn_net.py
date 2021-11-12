@@ -11,7 +11,8 @@ class CNN_Network(nn.Module):
         self.conve1 = nn.Conv2d(in_channels=input_dims, out_channels=32, kernel_size=8, stride=4)
         self.conve2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)
         self.conve3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1)
-        self.fc1 = nn.Linear(64*7*7, 512)
+        self.fc1_a = nn.Linear(64 * 7 * 7, 512)
+        self.fc1_b = nn.Linear(64 * 7 * 7, 512)
         self.fc2 = nn.Linear(512, n_actions)
         self.fc3 = nn.Linear(512, 1)
 
@@ -31,12 +32,13 @@ class CNN_Network(nn.Module):
         x = F.relu(self.conve2(x))
         x = F.relu(self.conve3(x))
         x = x.view(x.size()[0], -1)
-        x = F.relu(self.fc1(x))
+        x_a = F.relu(self.fc1_a(x))
+        x_b = F.relu(self.fc1_b(x))
         if DUELING:
-            V = self.fc3(x)
-            A = self.fc2(x)
+            V = self.fc3(x_a)
+            A = self.fc2(x_b)
             AVER_A = T.mean(A, dim=1, keepdim=True)
-            return V+A-AVER_A
+            return V+(A-AVER_A)
         else:
             return self.fc2(x)
 
@@ -50,14 +52,14 @@ class CNN_Network(nn.Module):
         self.writer.add_histogram('conve1.weight', self.conve1.weight, epoch)
         self.writer.add_histogram('conve2.weight', self.conve2.weight, epoch)
         self.writer.add_histogram('conve3.weight', self.conve3.weight, epoch)
-        self.writer.add_histogram('fc1.weight', self.fc1.weight, epoch)
+        self.writer.add_histogram('fc1.weight', self.fc1_a.weight, epoch)
         self.writer.add_histogram('fc2.weight', self.fc2.weight, epoch)
 
     def traceBias(self, epoch):
         self.writer.add_histogram('conve1.bias', self.conve1.bias, epoch)
         self.writer.add_histogram('conve2.bias', self.conve2.bias, epoch)
         self.writer.add_histogram('conve3.bias', self.conve3.bias, epoch)
-        self.writer.add_histogram('fc1.bias', self.fc1.bias, epoch)
+        self.writer.add_histogram('fc1.bias', self.fc1_a.bias, epoch)
         self.writer.add_histogram('fc2.bias', self.fc2.bias, epoch)
 
     def traceGrad(self, epoch):
@@ -67,7 +69,7 @@ class CNN_Network(nn.Module):
         self.writer.add_histogram('conve1.bias.grad', self.conve1.bias.grad, epoch)
         self.writer.add_histogram('conve2.bias.grad', self.conve2.bias.grad, epoch)
         self.writer.add_histogram('conve3.bias.grad', self.conve3.bias.grad, epoch)
-        self.writer.add_histogram('fc1.weight.grad', self.fc1.weight.grad, epoch)
-        self.writer.add_histogram('fc1.bias.grad', self.fc1.bias.grad, epoch)
+        self.writer.add_histogram('fc1.weight.grad', self.fc1_a.weight.grad, epoch)
+        self.writer.add_histogram('fc1.bias.grad', self.fc1_a.bias.grad, epoch)
         self.writer.add_histogram('fc2.weight.grad', self.fc2.weight.grad, epoch)
         self.writer.add_histogram('fc2.bias.grad', self.fc2.bias.grad, epoch)
