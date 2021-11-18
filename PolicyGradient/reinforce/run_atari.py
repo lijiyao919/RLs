@@ -3,7 +3,7 @@ import torch as T
 from itertools import count
 import numpy as np
 from reinforce import ReinforceAgent
-from utils import device
+from PolicyGradient.common.utils import device
 #Game Setup
 env = gym.make('Pong-v0')
 env.seed(543)

@@ -4,7 +4,7 @@ from torch.utils.tensorboard import SummaryWriter
 # from cnn_policy import CNN_Net
 from mlp_policy import MLP_Net
 from statistics import mean
-from utils import device
+from PolicyGradient.common.utils import device
 
 class ReinforceMemory(object):
     def __init__(self):

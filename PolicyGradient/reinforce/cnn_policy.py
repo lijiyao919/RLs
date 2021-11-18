@@ -3,7 +3,7 @@ import torch as T
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from utils import device
+
 
 class CNN_Net(nn.Module):
     def __init__(self, tb_writer, chkpt_dir='checkpoints'):
