@@ -1,18 +1,10 @@
 from collections import namedtuple
-from collections import deque
 from torch.utils.tensorboard import SummaryWriter
 from mlp_net import MLP_A2CNet
 #from cnn_net import CNN_Network
 import torch as T
-import random
-import math
 from PolicyGradient.common.utils import device
-import torch.nn as nn
-from statistics import mean
 from torch.distributions import Categorical
-import torch.nn.functional as F
-
-Transition = namedtuple('Transition', ('state',  'reward', 'next_state')) #Transition is a class, not object
 
 class RolloutStorage(object):
     def __init__(self):
