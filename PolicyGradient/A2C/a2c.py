@@ -6,7 +6,7 @@ from mlp_net import MLP_A2CNet
 import torch as T
 import random
 import math
-from utils import device
+from PolicyGradient.common.utils import device
 import torch.nn as nn
 from statistics import mean
 from torch.distributions import Categorical
@@ -14,85 +14,81 @@ import torch.nn.functional as F
 
 Transition = namedtuple('Transition', ('state',  'reward', 'next_state')) #Transition is a class, not object
 
-class A2CMemory(object):
+class RolloutStorage(object):
     def __init__(self):
-        self.states = []
         self.log_probs = []
+        self.values = []
         self.rewards = []
-        self.dones = []
-        self.last_state = None
+        self.masks = []
+        self.n_plus_1_state = None
         self.total_entropy = 0
 
-    def store_memory(self, state, log_prob, reward, next_state, done, entropy):
-        self.states.append(state)
+    def push(self, log_prob, value, reward, mask, next_state, entropy):
         self.log_probs.append(log_prob)
+        self.values.append(value)
         self.rewards.append(reward)
-        self.dones.append(done)
-        self.last_state = next_state
+        self.masks.append(mask)
+        self.n_plus_1_state = next_state
         self.total_entropy += entropy
         #print(self.total_entropy)
 
     def clear(self):
-        del self.states[:]
         del self.log_probs[:]
+        del self.values[:]
         del self.rewards[:]
-        del self.dones[:]
-        self.last_state = None
+        del self.masks[:]
+        self.n_plus_1_state = None
         self.total_entropy = 0
 
-    def __len__(self):
-        return len(self.dones)
 
 class A2Cgent(object):
 
-    def __init__(self, input_dims, n_actions, fc1_dims, fc2_dims, eta, batch_size, gamma=0.99):
-        self.memo = A2CMemory()
+    def __init__(self, input_dims, n_actions, fc1_dims, fc2_dims, eta, n_step, n_env, gamma=0.99):
+        self.memo = RolloutStorage()
         self.gamma = gamma
-        self.batch_size = batch_size
+        self.n_step = n_step
+        self.n_env = n_env
 
         self.writer = SummaryWriter()
         self.policy_net = MLP_A2CNet(input_dims, n_actions, fc1_dims, fc2_dims, eta, self.writer).to(device)
         #self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
 
-        self.recent_rewards = []
-        self.q_arr = []
 
-    def store_exp(self, state, log_prob, reward, next_state, done, entropy):
-        self.memo.store_memory(state, log_prob, reward, next_state, done, entropy)
+    def store_exp(self, state, log_prob, reward, mask, next_state, entropy):
+        self.memo.push(state, log_prob, reward, mask, next_state, entropy)
 
-    def store_size(self):
-        return len(self.memo)
 
-    def select_action(self, state):
-        probs, _ = self.policy_net(state)
-        dist = Categorical(probs)
+    def feed_forward(self, state):
+        prob, value = self.policy_net(state)
+        dist = Categorical(prob)
         action = dist.sample()
-        log_probs = dist.log_prob(action)
-        return action.item(), log_probs, dist.entropy().mean()
+        log_prob = dist.log_prob(action)
+        return action, log_prob, value, dist.entropy().mean()
+
+    def compute_returns(self, n_puls_1_value, rewards, masks):
+        R = n_puls_1_value
+        returns = []
+        for i in reversed(range(len(rewards))):
+            R = rewards[i] + self.gamma * R * masks[i]
+            returns.insert(0, R)
+        return returns
 
     def learn(self, step):
-        state_tensor = T.tensor(self.memo.states, device=device, dtype=T.float32)
-        log_prob_tensor = T.cat(self.memo.log_probs).to(device)
-        reward_tensor = T.tensor(self.memo.rewards,device=device)
-        done_tensor = T.tensor(self.memo.dones, device=device, dtype=T.uint8)
-        last_state_tensor = T.tensor([self.memo.last_state], device=device, dtype=T.float32)
+        log_probs_tensor = T.stack(self.memo.log_probs).to(device)
+        values_tensor = T.stack(self.memo.values)
+        rewards_tensor = T.stack(self.memo.rewards)
+        masks_tensor = T.stack(self.memo.masks)
+        n_plus_1_state_tensor = T.tensor(self.memo.n_plus_1_state, device=device, dtype=T.float32)
 
-        R = T.zeros(self.batch_size, device=device)
-        _, R[-1] = self.policy_net(last_state_tensor)
-        for i in range(self.batch_size-1, 0, -1):
-            R[i-1] = reward_tensor[i-1]+self.gamma*R[i]*(1-done_tensor[i].item())
-        #print(R)
+        _, n_plus_1_value = self.policy_net(n_plus_1_state_tensor)
+        n_plus_1_value = n_plus_1_value.view(self.n_env, )
+        target_values_tensor = self.compute_returns(n_plus_1_value, rewards_tensor, masks_tensor)
+        target_values_tensor = T.stack(target_values_tensor)
 
-        #compute state action values
-        _, V = self.policy_net(state_tensor)
-        V = V.view(self.batch_size)
-        #print(V)
-
+        advantage = target_values_tensor - values_tensor
 
         #compute loss
-        self.writer.add_scalar("V", V.mean(), step)
-        advantage = R - V
-        actor_loss = (-log_prob_tensor*advantage.detach()).mean()
+        actor_loss = (-log_probs_tensor*advantage.detach()).mean()
         self.writer.add_scalar("actor loss", actor_loss, step)
         critic_loss = advantage.pow(2).mean()
         self.writer.add_scalar("critic loss", critic_loss, step)
@@ -105,21 +101,10 @@ class A2Cgent(object):
         self.memo.clear()
 
 
-    def calcPerformance(self, ep_reward, epoch):
-        self.recent_rewards.append(ep_reward)
-        if len(self.recent_rewards) > 30:
-            self.recent_rewards.pop(0)
-        aver_reward = mean(self.recent_rewards)
-        self.writer.add_scalar("The Episode Reward", ep_reward, epoch)
-        self.writer.add_scalar("The Average Reward (recent 30 episodes)", aver_reward, epoch)
-        print('Episode {}\tReward: {:.2f}\tThe Average Reward (recent 30 episodes): {:.2f}'.format(epoch, ep_reward, aver_reward))
+    def calcPerformance(self, aver_reward, step):
+        self.writer.add_scalar("The Average Reward (10 episodes)", aver_reward, step)
+        print('In Step: {}\t The Average Reward (10 episodes): {:.2f}'.format(step, aver_reward))
 
-    '''def record_Q_value(self, q_values, epoch, done):
-        mean_q_value = T.mean(T.cat(tuple(q_values.detach()))).item()
-        self.q_arr.append(mean_q_value)
-        if done:
-            self.writer.add_scalar("The Average Q value", mean(self.q_arr), epoch)
-            del self.q_arr[:]'''
 
     def flushTBSummary(self):
         self.writer.flush()
