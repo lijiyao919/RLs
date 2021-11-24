@@ -1,10 +1,7 @@
-import gym
-import numpy as np
 import torch as T
 from dqn import DQNAgent
 from itertools import count
 from utils import device
-from atari_wrapper import make_wrap_atari
 from environment import Environment
 
 #Game Setup

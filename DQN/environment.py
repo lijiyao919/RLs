@@ -1,7 +1,6 @@
 import gym
-from gym import spaces
 import numpy as np
-from atari_wrapper import make_wrap_atari
+from Wrappers.atari_wrapper import make_wrap_atari
 
 
 class Environment(object):
