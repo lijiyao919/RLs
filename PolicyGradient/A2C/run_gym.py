@@ -3,7 +3,7 @@ import torch as T
 import numpy as np
 from a2c import A2Cgent
 from PolicyGradient.common.utils import device
-from PolicyGradient.common.multiprocessing_env import SubprocVecEnv
+from Wrapers.venv_wraper import SubprocVecEnv
 
 env_name = "CartPole-v0"
 train_step = 100000
