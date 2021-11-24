@@ -1,5 +1,8 @@
-#This code is from openai baseline
-#https://github.com/openai/baselines/tree/master/baselines/common/vec_env
+#This code is from:
+#https://github.com/higgsfield/RL-Adventure-2/blob/master/common/multiprocessing_env.py
+#refer to openai baseline:
+#https://github.com/openai/baselines/blob/master/baselines/common/vec_env/vec_env.py
+#https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
 
 import numpy as np
 from multiprocessing import Process, Pipe
