@@ -3,7 +3,7 @@ from torch.utils.tensorboard import SummaryWriter
 from mlp_net import MLP_A2CNet
 #from cnn_net import CNN_Network
 import torch as T
-from PolicyGradient.common.utils import device
+from utils import device
 from torch.distributions import Categorical
 
 class RolloutStorage(object):

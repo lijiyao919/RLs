@@ -2,7 +2,7 @@ import gym
 import torch as T
 import numpy as np
 from a2c import A2Cgent
-from PolicyGradient.common.utils import device
+from utils import device
 from Wrappers.venv_wrapper import SubprocVecEnv
 
 env_name = "CartPole-v0"
