@@ -1,4 +1,3 @@
-from collections import namedtuple
 from torch.utils.tensorboard import SummaryWriter
 from mlp_net import MLP_A2CNet
 #from cnn_net import CNN_Network
@@ -70,9 +69,10 @@ class A2Cgent(object):
         values_tensor = T.stack(self.memo.values)
         rewards_tensor = T.stack(self.memo.rewards)
         masks_tensor = T.stack(self.memo.masks)
-        n_plus_1_state_tensor = T.tensor(self.memo.n_plus_1_state, device=device, dtype=T.float32)
+        #n_plus_1_state_tensor = T.tensor(self.memo.n_plus_1_state, device=device, dtype=T.float32)
 
-        _, n_plus_1_value = self.policy_net(n_plus_1_state_tensor)
+
+        _, n_plus_1_value = self.policy_net(self.memo.n_plus_1_state)
         n_plus_1_value = n_plus_1_value.view(self.n_env, )
         target_values_tensor = self.compute_returns(n_plus_1_value, rewards_tensor, masks_tensor)
         target_values_tensor = T.stack(target_values_tensor)

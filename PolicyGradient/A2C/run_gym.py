@@ -45,13 +45,14 @@ def train():
             value = value.view(num_envs,)
             reward = T.tensor(reward, dtype=T.float32, device=device)
             masks = T.tensor(1-done, dtype=T.long, device=device)
+            next_state_exp = T.tensor(next_state, device=device, dtype=T.float32)
             """log_prob:env#, torch
                value:env#, torch
                reward:env#, torch
                masks:env#, torch
                next_state: env#*input_shape numpy
                entropy: scale"""
-            agent.store_exp(log_prob, value, reward, masks, next_state, entropy)
+            agent.store_exp(log_prob, value, reward, masks, next_state_exp, entropy)
             state = next_state
             i_step += 1
 
