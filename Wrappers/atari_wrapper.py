@@ -38,9 +38,6 @@ class NoopResetEnv(gym.Wrapper):
                 obs = self.env.reset(**kwargs)
         return obs
 
-    def step(self, ac):
-        return self.env.step(ac)
-
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env):
         """Take action on reset for environments that are fixed until firing."""
@@ -58,8 +55,6 @@ class FireResetEnv(gym.Wrapper):
             self.env.reset(**kwargs)
         return obs
 
-    def step(self, ac):
-        return self.env.step(ac)
 
 class EpisodicLifeEnv(gym.Wrapper):
     def __init__(self, env):
@@ -76,7 +71,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         # check current lives, make loss of life terminal,
         # then update lives to handle bonus lives
         lives = self.env.unwrapped.ale.lives()
-        if lives < self.lives and lives > 0:
+        if 0 < lives < self.lives:
             # for Qbert sometimes we stay in lives == 0 condition for a few frames
             # so it's important to keep lives > 0, so that we only reset once
             # the environment advertises done.
@@ -103,7 +98,7 @@ class MaxAndSkipEnv(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         # most recent raw observations (for max pooling across time steps)
         self._obs_buffer = np.zeros((2,)+env.observation_space.shape, dtype=np.uint8)
-        self._skip       = skip
+        self._skip = skip
 
     def step(self, action):
         """Repeat action, sum reward, and max over last observations."""
@@ -285,6 +280,6 @@ def wrap_deepmind(env, episode_life=True, clip_rewards=True, frame_stack=False, 
         env = FrameStack(env, 4)
     return env
 
-def make_wrap_atari(env_id, clip_rewards=False):
+def make_wrap_atari(env_id, clip_rewards=True):
     env = make_atari(env_id)
     return wrap_deepmind(env, clip_rewards=clip_rewards, frame_stack=True, scale=True)
