@@ -1,6 +1,6 @@
 from torch.utils.tensorboard import SummaryWriter
-from mlp_net import MLP_A2CNet
-#from cnn_net import CNN_Network
+#from mlp_net import MLP_A2CNet
+from cnn_net import CNN_Network
 import torch as T
 from utils import device
 from torch.distributions import Categorical
@@ -41,8 +41,8 @@ class A2Cgent(object):
         self.n_env = n_env
 
         self.writer = SummaryWriter()
-        self.policy_net = MLP_A2CNet(input_dims, n_actions, fc1_dims, fc2_dims, eta, self.writer).to(device)
-        #self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
+        #self.policy_net = MLP_A2CNet(input_dims, n_actions, fc1_dims, fc2_dims, eta, self.writer).to(device)
+        self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
 
 
     def store_exp(self, state, log_prob, reward, mask, next_state, entropy):
@@ -73,7 +73,7 @@ class A2Cgent(object):
 
 
         _, n_plus_1_value = self.policy_net(self.memo.n_plus_1_state)
-        n_plus_1_value = n_plus_1_value.view(self.n_env, )
+        n_plus_1_value = n_plus_1_value.view(self.n_env, ).detach()
         target_values_tensor = self.compute_returns(n_plus_1_value, rewards_tensor, masks_tensor)
         target_values_tensor = T.stack(target_values_tensor)
 
@@ -88,6 +88,7 @@ class A2Cgent(object):
 
         self.policy_net.optimizer.zero_grad()
         loss.backward()
+        T.nn.utils.clip_grad_norm_(self.policy_net.parameters(), 0.5)
         self.policy_net.optimizer.step()
 
         self.memo.clear()
