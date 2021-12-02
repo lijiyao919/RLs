@@ -2,7 +2,7 @@ import torch as T
 from dqn import DQNAgent
 from itertools import count
 from utils import device
-from environment import Environment
+from Wrappers.environment import Environment
 
 #Game Setup
 env = Environment('PongNoFrameskip-v4')

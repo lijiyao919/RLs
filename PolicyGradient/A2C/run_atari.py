@@ -5,6 +5,7 @@ from collections import deque
 from Wrappers.atari_wrapper import make_atari, wrap_deepmind
 from Wrappers.venv_wrapper import SubprocVecEnv, VecPyTorchFrameStack, VecPyTorch, TransposeImage
 from Wrappers.monitor import Monitor
+from Wrappers.environment import Environment
 import numpy as np
 
 #Game Setup
@@ -12,6 +13,7 @@ num_step = 5
 num_envs = 16
 train_step = 1000000
 log_feq = 1000
+test_feq = 10000
 env_name = 'PongNoFrameskip-v4'
 
 
@@ -26,17 +28,17 @@ def make_env(seed, rank):
     return _thunk
 
 def test(agent):
-    state = env.reset()
+    state = test_env.reset()
     done = False
     total_reward = 0
     while not done:
         state_tensor = T.from_numpy(np.expand_dims(state.astype(np.float32), axis=0)).to(device)
         action, _, _,_ = agent.feed_forward(state_tensor)
-        next_state, reward, done, _ = env.step(action.item())
-        #env.render()
+        next_state, reward, done, _ = test_env.step(action.item())
+        test_env.render()
         state = next_state
         total_reward += reward
-    env.close()
+    test_env.close()
     return total_reward
 
 def train():
@@ -67,6 +69,10 @@ def train():
                 agent.calcPerformance(mean_reward, i_step)
                 agent.flushTBSummary()
 
+            if i_step % test_feq == 0:
+                mean_reward = np.mean([test(agent) for _ in range(10)])
+                print(mean_reward)
+
         agent.learn(i_step, log_feq)
 
 
@@ -75,5 +81,6 @@ if __name__ == '__main__':
     envs = SubprocVecEnv(envs)
     envs = VecPyTorch(envs, device)
     envs = VecPyTorchFrameStack(envs, 4, device)
-    env = make_env(100, 0)()
+
+    test_env = Environment(env_name, episode_life=False, clip_rewards=False, scale=False)
     train()

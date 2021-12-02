@@ -4,8 +4,8 @@ from Wrappers.atari_wrapper import make_wrap_atari
 
 
 class Environment(object):
-    def __init__(self, env_name, clip_rewards=False):
-        self._env = make_wrap_atari(env_name, clip_rewards)
+    def __init__(self, env_name, episode_life=True, clip_rewards=True, scale=True):
+        self._env = make_wrap_atari(env_name, episode_life, clip_rewards, scale)
 
 
     def seed(self, seed):
@@ -34,3 +34,6 @@ class Environment(object):
 
     def render(self):
         self._env.render()
+
+    def close(self):
+        self._env.close()
