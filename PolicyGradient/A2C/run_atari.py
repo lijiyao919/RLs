@@ -21,8 +21,8 @@ def make_env(seed, rank):
     def _thunk():
         env = make_atari(env_name)
         env.seed(seed+rank)
-        env = Monitor(env,allow_early_resets=False)
-        env = wrap_deepmind(env)
+        env = Monitor(env, allow_early_resets=False)
+        env = wrap_deepmind(env, scale=True)
         env = TransposeImage(env, op=[2, 0, 1])
         return env
     return _thunk

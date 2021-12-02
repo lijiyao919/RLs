@@ -21,7 +21,6 @@ class CNN_Network(nn.Module):
         self.writer = tb_writer
 
     def forward(self, x):
-        x = x/255.0
         x = F.relu_(self.conve1(x))
         x = F.relu_(self.conve2(x))
         x = x.view(x.size()[0], -1)
