@@ -64,16 +64,15 @@ class A2Cgent(object):
             returns.insert(0, R)
         return returns
 
-    def learn(self, step):
+    def learn(self, step, log_feq):
         log_probs_tensor = T.stack(self.memo.log_probs).to(device)
         values_tensor = T.stack(self.memo.values)
         rewards_tensor = T.stack(self.memo.rewards)
         masks_tensor = T.stack(self.memo.masks)
-        #n_plus_1_state_tensor = T.tensor(self.memo.n_plus_1_state, device=device, dtype=T.float32)
 
-
-        _, n_plus_1_value = self.policy_net(self.memo.n_plus_1_state)
-        n_plus_1_value = n_plus_1_value.view(self.n_env, ).detach()
+        with T.no_grad():
+            _, n_plus_1_value = self.policy_net(self.memo.n_plus_1_state)
+        n_plus_1_value = n_plus_1_value.view(self.n_env, )
         target_values_tensor = self.compute_returns(n_plus_1_value, rewards_tensor, masks_tensor)
         target_values_tensor = T.stack(target_values_tensor)
 
@@ -81,9 +80,7 @@ class A2Cgent(object):
 
         #compute loss
         actor_loss = (-log_probs_tensor*advantage.detach()).mean()
-        self.writer.add_scalar("actor loss", actor_loss, step)
         critic_loss = advantage.pow(2).mean()
-        self.writer.add_scalar("critic loss", critic_loss, step)
         loss = actor_loss + 0.5*critic_loss - 0.001*self.memo.total_entropy
 
         self.policy_net.optimizer.zero_grad()
@@ -91,8 +88,16 @@ class A2Cgent(object):
         T.nn.utils.clip_grad_norm_(self.policy_net.parameters(), 0.5)
         self.policy_net.optimizer.step()
 
-        self.memo.clear()
+        if step % log_feq == 0:
+            v_mean = T.mean(T.cat(self.memo.values).detach())
+            self.writer.add_scalar("V value", v_mean.item(), step)
+            self.writer.add_scalar("actor loss", actor_loss, step)
+            self.writer.add_scalar("critic loss", critic_loss, step)
+            self.policy_net.traceWeight(step)
+            self.policy_net.traceGrad(step)
+            self.flushTBSummary()
 
+        self.memo.clear()
 
     def calcPerformance(self, aver_reward, step):
         self.writer.add_scalar("The Average Reward (10 episodes)", aver_reward, step)

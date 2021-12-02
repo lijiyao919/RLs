@@ -11,6 +11,7 @@ import numpy as np
 num_step = 5
 num_envs = 16
 train_step = 1000000
+log_feq = 1000
 env_name = 'PongNoFrameskip-v4'
 
 
@@ -39,7 +40,7 @@ def test(agent):
     return total_reward
 
 def train():
-    agent = A2Cgent(envs.observation_space.shape[0], envs.action_space.n, 40, 40, 7e-5, num_step, num_envs)
+    agent = A2Cgent(envs.observation_space.shape[0], envs.action_space.n, 40, 40, 1e-4, num_step, num_envs)
     agent.train_mode()
     episode_rewards = deque(maxlen=10)
 
@@ -61,12 +62,12 @@ def train():
             state = next_state
             i_step += 1
 
-            if i_step % 1000 == 0 and len(episode_rewards) > 1:
+            if i_step % log_feq == 0 and len(episode_rewards) > 1:
                 mean_reward = np.mean(episode_rewards)
                 agent.calcPerformance(mean_reward, i_step)
                 agent.flushTBSummary()
 
-        agent.learn(i_step)
+        agent.learn(i_step, log_feq)
 
 
 if __name__ == '__main__':
