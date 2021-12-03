@@ -1,12 +1,14 @@
 import gym
 import numpy as np
-from Wrappers.atari_wrapper import make_wrap_atari
+from Wrappers.atari_wrapper import make_atari, wrap_deepmind
+from Wrappers.monitor import Monitor
 
-
+#Can use for Value based train/test,  and Policy based test
 class Environment(object):
     def __init__(self, env_name, episode_life=True, clip_rewards=True, scale=True):
-        self._env = make_wrap_atari(env_name, episode_life, clip_rewards, scale)
-
+        env = make_atari(env_name)
+        env = Monitor(env, allow_early_resets=False)
+        self._env = wrap_deepmind(env, episode_life=episode_life, clip_rewards=clip_rewards, frame_stack=True, scale=scale)
 
     def seed(self, seed):
         self._env.seed(seed)

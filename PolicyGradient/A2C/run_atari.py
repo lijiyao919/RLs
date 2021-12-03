@@ -29,17 +29,16 @@ def make_env(seed, rank):
 
 def test(agent):
     state = test_env.reset()
-    done = False
-    total_reward = 0
+    done = Falsep
     while not done:
         state_tensor = T.from_numpy(np.expand_dims(state.astype(np.float32), axis=0)).to(device)
         action, _, _,_ = agent.feed_forward(state_tensor)
-        next_state, reward, done, _ = test_env.step(action.item())
+        next_state, reward, done, info = test_env.step(action.item())
         test_env.render()
         state = next_state
-        total_reward += reward
-    test_env.close()
-    return total_reward
+        if done:
+            test_env.close()
+            return info['episode']['r']
 
 def train():
     agent = A2Cgent(envs.observation_space.shape[0], envs.action_space.n, 40, 40, 1e-4, num_step, num_envs)
