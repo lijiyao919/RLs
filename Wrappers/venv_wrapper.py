@@ -1,7 +1,7 @@
 #refer to openai baseline:
 #https://github.com/openai/baselines/blob/master/baselines/common/vec_env/vec_env.py
 #https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
-
+#https://github.com/openai/baselines/blob/master/baselines/common/vec_env/vec_frame_stack.py
 import numpy as np
 from multiprocessing import Process, Pipe
 from abc import abstractmethod
@@ -199,8 +199,8 @@ class VecEnvWrapper(VecEnv):
             raise AttributeError("attempted to get missing private attribute '{}'".format(name))
         return getattr(self.venv, name)
 
-# Derived from
-# https://github.com/openai/baselines/blob/master/baselines/common/vec_env/vec_frame_stack.py
+# The code is from
+# https://github.com/ikostrikov/pytorch-a2c-ppo-acktr-gail/blob/master/a2c_ppo_acktr/envs.py
 class VecPyTorch(VecEnvWrapper):
     def __init__(self, venv, device):
         """Return only every `skip`-th frame"""
