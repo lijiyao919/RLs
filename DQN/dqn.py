@@ -1,8 +1,8 @@
 from collections import namedtuple
 from collections import deque
 from torch.utils.tensorboard import SummaryWriter
-#from mlp_net import MLP_Network
-from cnn_net import CNN_Network
+from mlp_net import MLP_Network
+#from cnn_net import CNN_Network
 import torch as T
 import random
 import math
@@ -27,7 +27,7 @@ class ReplayBuffer(object):
         return len(self.buffer)
 
 class DQNAgent(object):
-    def __init__(self, input_dims, n_actions, fc1_dims, eta, buffer_size=10000, batch_size=32, gamma=0.99, target_update_feq=1000):
+    def __init__(self, input_dims, n_actions, fc1_dims, eta, buffer_size=10000, batch_size=32, gamma=0.99, target_update_feq=1000, eps_end=0.1, eps_decay=1000000):
         self.replay_buffer = ReplayBuffer(buffer_size)
         self.action_space = n_actions
         self.gamma = gamma
@@ -35,28 +35,25 @@ class DQNAgent(object):
         self.target_update = target_update_feq
 
         self.writer = SummaryWriter()
-        #self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
-        self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
-        #self.target_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
-        self.target_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
+        self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
+        #self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
+        self.target_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
+        #self.target_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
         self.eps_start = 1
-        self.eps_end = 0.1            #0.05 gym
-        self.eps_decay = 1000000      #10000 gym
-        self.steps_done = 0
+        self.eps_end = eps_end
+        self.eps_decay = eps_decay
 
-        self.recent_rewards = []
-        self.q_arr = []
+        self.q_arr = deque(maxlen=10)
 
     def store_exp(self, *args):
         self.replay_buffer.push(*args)
 
-    def select_action(self, state):
+    def select_action(self, state, step):
         random_num = random.random()
-        eps_thredhold = self.eps_end + (self.eps_start-self.eps_end)*math.exp(-1*self.steps_done/self.eps_decay)
-        self.steps_done +=1
+        eps_thredhold = self.eps_end + (self.eps_start-self.eps_end)*math.exp(-1*step/self.eps_decay)
 
         if random_num > eps_thredhold:
             with T.no_grad():
@@ -64,7 +61,7 @@ class DQNAgent(object):
         else:
             return T.tensor([[random.randrange(self.action_space)]], device=device)
 
-    def learn(self, epoch, done):
+    def learn(self, step, log_feq):
         if len(self.replay_buffer) < self.batch_size:
             return
 
@@ -92,7 +89,6 @@ class DQNAgent(object):
         #compute huber loss and optimize
         criterion = nn.SmoothL1Loss()
         loss = criterion(state_action_values, target_state_action_values.unsqueeze(1))
-        self.writer.add_scalar("Loss/train", loss, epoch)
 
         self.policy_net.optimizer.zero_grad()
         loss.backward()
@@ -100,36 +96,31 @@ class DQNAgent(object):
             param.grad.data.clamp_(-1, 1)
         self.policy_net.optimizer.step()
 
-        if self.steps_done % self.target_update == 0:
+        if step % self.target_update == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        if epoch % 100 == 0:
+        if step % log_feq*10 == 0:
             self.policy_net.save_checkpoint()
 
-        #trace Q value
-        self.record_Q_value(state_action_values, epoch, done)
-        # trance policy_net parameters
-        if done:
-            self.policy_net.traceWeight(epoch)
-            self.policy_net.traceBias(epoch)
-            self.policy_net.traceGrad(epoch)
+        #trace Q value and other parameters
+        self.record_Q_value(state_action_values, step)
+        if step % log_feq == 0:
+            self.writer.add_scalar("Loss/train", loss, step)
+            self.writer.add_scalar("The Average Q value", mean(self.q_arr), step)
+            self.policy_net.traceWeight(step)
+            self.policy_net.traceBias(step)
+            self.policy_net.traceGrad(step)
 
 
-    def calcPerformance(self, ep_reward, epoch):
-        self.recent_rewards.append(ep_reward)
-        if len(self.recent_rewards) > 30:
-            self.recent_rewards.pop(0)
-        aver_reward = mean(self.recent_rewards)
-        self.writer.add_scalar("The Episode Reward", ep_reward, epoch)
-        self.writer.add_scalar("The Average Reward (recent 30 episodes)", aver_reward, epoch)
-        print('Episode {}\tReward: {:.2f}\tThe Average Reward (recent 30 episodes): {:.2f}'.format(epoch, ep_reward, aver_reward))
+    def calcPerformance(self, aver_reward, step):
+        self.writer.add_scalar("The Average Reward (10 episodes)", aver_reward, step)
+        print('Step {}\tThe Average Reward (10 episodes): {:.2f}'.format(step, aver_reward))
 
-    def record_Q_value(self, q_values, epoch, done):
+    def record_Q_value(self, q_values, step):
         mean_q_value = T.mean(T.cat(tuple(q_values.detach()))).item()
         self.q_arr.append(mean_q_value)
-        if done:
-            self.writer.add_scalar("The Average Q value", mean(self.q_arr), epoch)
-            del self.q_arr[:]
+
+
 
     def flushTBSummary(self):
         self.writer.flush()

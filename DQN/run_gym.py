@@ -5,35 +5,58 @@ from dqn import DQNAgent
 from itertools import count
 from utils import device
 
-env = gym.make('CartPole-v0')
+
+env_name = "CartPole-v0"
+env = gym.make(env_name)
 env.seed(0)
-TARGET_UPDATE = 10
+test_env = gym.make(env_name)
+test_env.seed(10)
+
+train_step = 50000
+log_feq = 1000
+
+def test(agent, step):
+    state = test_env.reset()
+    done = False
+    total_reward = 0
+    while not done:
+        state_tensor = T.from_numpy(np.expand_dims(state.astype(np.float32), axis=0)).to(device)
+        action_tensor = agent.select_action(state_tensor, step)
+        next_state, reward, done, _ = test_env.step(action_tensor.item())
+        #env.render()
+        state = next_state
+        total_reward += reward
+    #env.close()
+    return total_reward
 
 def train():
-    agent = DQNAgent(4, env.action_space.n, 256, 0.001, batch_size=128, target_update_feq=100)
+    agent = DQNAgent(env.observation_space.shape[0], env.action_space.n, 256, 0.001, batch_size=64, target_update_feq=100, eps_end=0.05, eps_decay=10000)
     agent.train_mode()
+    i_step = 0
 
-    for i_episode in count(1):
-        # Collect from One Episode
-        state, ep_reward = env.reset(), 0
-        while True:
-            state = state.astype(np.float32)
-            state_tensor = T.from_numpy(np.expand_dims(state, axis=0)).to(device)
-            action_tensor = agent.select_action(state_tensor)
-            state, reward, done, info = env.step(action_tensor.item())
-            #env.render()
+    while i_step < train_step:
+        state = env.reset()
+        done = False
+        while not done:
+            state_tensor = T.from_numpy(np.expand_dims(state.astype(np.float32), axis=0)).to(device)
+            action_tensor = agent.select_action(state_tensor, i_step)
+            state, reward, done, _ = env.step(action_tensor.item())
+            # env.render()
 
             reward_torch = T.tensor([reward], device=device)
             next_state = state.astype(np.float32)
             next_state_tensor = T.from_numpy(np.expand_dims(next_state, axis=0)).to(device)
             agent.store_exp(state_tensor, action_tensor, reward_torch, next_state_tensor)
-            ep_reward += reward
-            agent.learn(i_episode, done)
-            if done:
-                agent.calcPerformance(ep_reward, i_episode)
+            agent.learn(i_step, log_feq)
+            i_step += 1
+
+            if i_step % log_feq == 0:
+                mean_reward = np.mean([test(agent, i_step) for _ in range(10)])
+                agent.calcPerformance(mean_reward, i_step)
                 agent.flushTBSummary()
-                break
-    env.close()
+
+
+
 
 if __name__ == '__main__':
     train()
