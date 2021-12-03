@@ -29,7 +29,7 @@ def make_env(seed, rank):
 
 def test(agent):
     state = test_env.reset()
-    done = Falsep
+    done = False
     while not done:
         state_tensor = T.from_numpy(np.expand_dims(state.astype(np.float32), axis=0)).to(device)
         action, _, _,_ = agent.feed_forward(state_tensor)
