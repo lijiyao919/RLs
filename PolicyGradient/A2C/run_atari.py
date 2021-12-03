@@ -82,5 +82,5 @@ if __name__ == '__main__':
     envs = VecPyTorch(envs, device)
     envs = VecPyTorchFrameStack(envs, 4, device)
 
-    test_env = Environment(env_name, episode_life=False, clip_rewards=False, scale=False)
+    test_env = Environment(env_name, episode_life=False, clip_rewards=False, scale=True)
     train()
