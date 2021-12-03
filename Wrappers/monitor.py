@@ -1,9 +1,14 @@
+# copy from https://github.com/lijiyao919/stable-baselines3/blob/master/stable_baselines3/common/monitor.py
+
 import time
-from typing import Tuple, Union
+from typing import Tuple, Union, Dict, Any, List
 import gym
 import numpy as np
-#from type_aliases import GymEnv, GymObs, GymStepReturn
+from Wrappers.venv_wrapper import VecEnv
 
+GymEnv = Union[gym.Env, VecEnv]
+GymObs = Union[Tuple, Dict[str, Any], np.ndarray, int]
+GymStepReturn = Tuple[GymObs, float, bool, Dict]
 
 
 class Monitor(gym.Wrapper):
@@ -37,7 +42,7 @@ class Monitor(gym.Wrapper):
         self.total_steps = 0
         self.current_reset_info = {}  # extra info about the current episode, that was passed in during reset()
 
-    def reset(self, **kwargs):
+    def reset(self, **kwargs)-> GymObs:
         """
         Calls the Gym environment reset. Can only be called if the environment is over, or if allow_early_resets is True
         :param kwargs: Extra keywords saved for the next episode. only if defined by reset_keywords
@@ -57,7 +62,7 @@ class Monitor(gym.Wrapper):
             self.current_reset_info[key] = value
         return self.env.reset(**kwargs)
 
-    def step(self, action: Union[np.ndarray, int]) :
+    def step(self, action: Union[np.ndarray, int])-> GymStepReturn :
         """
         Step the environment with the given action
         :param action: the action
@@ -82,34 +87,34 @@ class Monitor(gym.Wrapper):
         self.total_steps += 1
         return observation, reward, done, info
 
-    def close(self):
+    def close(self)-> None:
         """
         Closes the environment
         """
         super(Monitor, self).close()
 
-    def get_total_steps(self) :
+    def get_total_steps(self) -> int:
         """
         Returns the total number of timesteps
         :return:
         """
         return self.total_steps
 
-    def get_episode_rewards(self) :
+    def get_episode_rewards(self) -> List[float]:
         """
         Returns the rewards of all the episodes
         :return:
         """
         return self.episode_returns
 
-    def get_episode_lengths(self):
+    def get_episode_lengths(self) -> List[int]:
         """
         Returns the number of timesteps of all the episodes
         :return:
         """
         return self.episode_lengths
 
-    def get_episode_times(self):
+    def get_episode_times(self) -> List[float]:
         """
         Returns the runtime in seconds of all the episodes
         :return:
