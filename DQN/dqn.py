@@ -1,8 +1,8 @@
 from collections import namedtuple
 from collections import deque
 from torch.utils.tensorboard import SummaryWriter
-from mlp_net import MLP_Network
-#from cnn_net import CNN_Network
+#from mlp_net import MLP_Network
+from cnn_net import CNN_Network
 import torch as T
 import random
 import math
@@ -35,10 +35,10 @@ class DQNAgent(object):
         self.target_update = target_update_feq
 
         self.writer = SummaryWriter()
-        self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
-        #self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
-        self.target_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
-        #self.target_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
+        #self.policy_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
+        self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
+        #self.target_net = MLP_Network(input_dims, n_actions, fc1_dims, eta, self.writer).to(device)
+        self.target_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 

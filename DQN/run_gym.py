@@ -2,7 +2,6 @@ import gym
 import torch as T
 import numpy as np
 from dqn import DQNAgent
-from itertools import count
 from utils import device
 
 
