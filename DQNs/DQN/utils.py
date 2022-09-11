@@ -4,8 +4,8 @@ import torch as T
 device = T.device('cuda' if T.cuda.is_available() else 'cpu')
 print('The device is: ', device)
 
-#Double DQN
+#Double DQNs
 DDQN = True
 
-#Dueling DQN
+#Dueling DQNs
 DUELING = True
