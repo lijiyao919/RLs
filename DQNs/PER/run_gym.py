@@ -1,8 +1,5 @@
 from per import PERAgent
 import gym
-import numpy as np
-import torch as T
-from utils import device
 
 env_name = "CartPole-v0"
 env = gym.make(env_name)
@@ -29,7 +26,7 @@ def train():
             #env.render()
 
             agent.store_exp(state, action, reward, next_state, int(done))
-            agent.learn(i_step)
+            agent.learn(i_step, log_feq)
             state = next_state
             i_step += 1
         print(episode, episode_reward)

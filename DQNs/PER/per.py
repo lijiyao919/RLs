@@ -1,18 +1,18 @@
 import numpy as np
 import random
 import math
-
-import torch
+from statistics import mean
 import torch as T
 from collections import namedtuple
 from torch.utils.tensorboard import SummaryWriter
 from mlp_net import MLP_Network
+from cnn_net import CNN_Network
 from utils import device
 
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done')) #Transition is a class, not object
 
 class PrioritizedBuffer(object):
-    def __init__(self, capacity, prob_alpha=0.6):
+    def __init__(self, capacity, prob_alpha):
         self.prob_alpha = prob_alpha
         self.capacity = capacity
         self.buffer = []
@@ -34,7 +34,7 @@ class PrioritizedBuffer(object):
         self.priorities[self.pos] = max_prio
         self.pos = (self.pos + 1) % self.capacity
 
-    def sample(self, batch_size, beta=0.4):
+    def sample(self, batch_size, beta):
         if len(self.buffer) == self.capacity:
             prios = self.priorities
         else:
@@ -68,8 +68,8 @@ class PrioritizedBuffer(object):
         return len(self.buffer)
 
 class PERAgent(object):
-    def __init__(self, input_dims, n_actions, fc1_dims, eta, buffer_size=100000, batch_size=32, gamma=0.99, target_update_feq=1000, eps_end=0.1, eps_decay=1000000):
-        self.replay_buffer = PrioritizedBuffer(buffer_size)
+    def __init__(self, input_dims, n_actions, fc1_dims, eta, buffer_size=100000, batch_size=32, gamma=0.99, target_update_feq=1000, \
+                 alpha=0.6, beta_start=0.4, beta_frames = 1000, eps_end=0.1, eps_decay=1000000):
         self.action_space = n_actions
         self.gamma = gamma
         self.batch_size = batch_size
@@ -87,6 +87,12 @@ class PERAgent(object):
         self.eps_end = eps_end
         self.eps_decay = eps_decay
 
+        self.alpha = alpha
+        self.beta_start = beta_start
+        self.beta_frames = beta_frames
+
+        self.replay_buffer = PrioritizedBuffer(buffer_size, self.alpha)
+
     def store_exp(self, *args):
         self.replay_buffer.push(*args)
 
@@ -102,8 +108,9 @@ class PERAgent(object):
             action = random.randrange(self.action_space)
         return action
 
-    def learn(self, step):
-        state, action, reward, next_state, done, indices, weights = self.replay_buffer.sample(self.batch_size)
+    def learn(self, step, log_feq):
+        beta_by_frame = min(1.0, self.beta_start + step * (1.0 - self.beta_start) / self.beta_frames)
+        state, action, reward, next_state, done, indices, weights = self.replay_buffer.sample(self.batch_size, beta_by_frame)
 
         state = T.tensor(state, dtype=T.float32, device=device)
         action = T.tensor(action, dtype=T.long, device=device)
@@ -131,9 +138,19 @@ class PERAgent(object):
         if step % self.target_update == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
 
+        if step % log_feq == 0:
+            self.writer.add_scalar("Loss/train", loss, step)
+
+    def calcPerformance(self, aver_reward, step):
+        self.writer.add_scalar("The Average Reward (10 episodes)", aver_reward, step)
+        print('Step {}\tThe Average Reward (10 episodes): {:.2f}'.format(step, aver_reward))
+
     def train_mode(self):
         self.policy_net.train()
 
     def test_mode(self):
         self.policy_net.eval()
+
+    def flushTBSummary(self):
+        self.writer.flush()
 
