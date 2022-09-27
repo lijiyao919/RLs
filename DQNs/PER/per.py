@@ -9,6 +9,8 @@ from mlp_net import MLP_Network
 from cnn_net import CNN_Network
 from utils import device
 
+DDQN = True
+
 Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done')) #Transition is a class, not object
 
 class PrioritizedBuffer(object):
@@ -122,9 +124,13 @@ class PERAgent(object):
         q_values = self.policy_net(state)
         next_q_values = self.target_net(next_state)
 
-        q_value = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
-        next_q_value = next_q_values.max(1)[0]
+        if DDQN:
+            max_q_act = q_values.max(1)[1]
+            next_q_value = next_q_values.gather(1,max_q_act.unsqueeze(1)).squeeze(1)
+        else:
+            next_q_value = next_q_values.max(1)[0]
         expected_q_value = reward + self.gamma * next_q_value * (1 - done)
+        q_value = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
 
         loss = (q_value - expected_q_value.detach()).pow(2) * weights
         prios = loss + 1e-5
