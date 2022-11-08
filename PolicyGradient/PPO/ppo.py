@@ -1,109 +1,124 @@
-import numpy as np
-import torch as T
-from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
-from mlp_policy import MLP_Net
-from statistics import mean
+from mlp_net import MLP_Net
+from cnn_net import CNN_Network
+import torch as T
 from utils import device
+from torch.distributions import Categorical
 
-class PPOMemory:
-    def __init__(self, batch_size):
+class RolloutStorage(object):
+    def __init__(self, model):
         self.states = []
-        self.log_probs = []
         self.actions = []
+        self.log_probs = []
+        self.values = []
         self.rewards = []
-        self.batch_size = batch_size
+        self.masks = []
+        self.target_values_tensor = None
+        self.total_entropy = 0
+        self.model = model
 
-    def generate_index_batches(self):
-        n_states = len(self.states)                                        # the len of state should be the same as log_probs, actions and rewards
-        batch_start = np.arange(0, n_states, self.batch_size)              # e.g. batch_size=10, then it is [0, 10, 20, 30, ...]
-        indices = np.arange(n_states, dtype=np.int64)                      # index of states, reward etc. [0,1,2,3,4,5,6,7,8,9,....]
-        batches = [indices[i:i + self.batch_size] for i in batch_start]    # e.g. batch_size=10, then it is [[0,1,2,3,4,5,...,9],[10,...,19],[20,...,29]]
-        return np.array(self.states), np.array(self.actions), np.array(self.log_probs), np.array(self.rewards), batches
-
-    def store_memory(self, state, action, log_probs, reward):
+    def push(self, state, action, log_prob, value, reward, mask, entropy):
         self.states.append(state)
         self.actions.append(action)
-        self.log_probs.append(log_probs)
+        self.log_probs.append(log_prob)
+        self.values.append(value)
         self.rewards.append(reward)
+        self.masks.append(mask)
+        self.total_entropy += entropy
+        #print(self.total_entropy)
 
-    def clear_memory(self):
+    def clear(self):
         del self.states[:]
-        del self.log_probs[:]
         del self.actions[:]
+        del self.log_probs[:]
+        del self.values[:]
         del self.rewards[:]
+        del self.masks[:]
+        self.target_values_tensor = None
+        self.total_entropy = 0
+
+    def compute_returns(self, n_plus_1_state, n_envs, gamma):
+        with T.no_grad():
+            _, n_plus_1_value = self.model(n_plus_1_state)
+        n_plus_1_value = n_plus_1_value.view(n_envs, )
+        R = n_plus_1_value
+        returns = []
+        for i in reversed(range(len(self.rewards))):
+            R = self.rewards[i] + gamma * R * self.masks[i]
+            returns.insert(0, R)
+        self.target_values_tensor = T.cat(returns)
+
 
 class PPOAgent(object):
-    def __init__(self, input_dims, n_actions, eta, gamma=0.99, epsilon=0.2, batch_size=64, n_epoch=10):
+    def __init__(self, input_dims, n_actions, fc1_dims, fc2_dims, eta, n_step, n_env, gamma=0.99, ppo_step=4, clip_param=0.2):
         self.gamma = gamma
-        self.epsilon = epsilon
-        self.n_epoch = n_epoch
+        self.n_step = n_step
+        self.n_env = n_env
+        self.ppo_step = ppo_step
+        self.clip_param = clip_param
 
         self.writer = SummaryWriter()
-        self.policy = MLP_Net(input_dims, n_actions, eta, self.writer).to(device)
-        self.memo = PPOMemory(batch_size)
-        self.recent_rewards = []
+        self.policy_net = MLP_Net(input_dims, n_actions, fc1_dims, fc2_dims, eta, self.writer).to(device)
+        #self.policy_net = CNN_Network(input_dims, n_actions, eta, self.writer).to(device)
+        self.memo = RolloutStorage(self.policy_net)
 
 
-    def collect_experience(self, state, action, log_probs, reward):
-        self.memo.store_memory(state, action, log_probs, reward)
+    def store_exp(self, state, action, log_prob, value, reward, mask, entropy):
+        self.memo.push(state, action, log_prob, value, reward, mask, entropy)
 
-    def select_action(self,state):
-        probs = self.policy(state)
-        m = Categorical(probs)
-        action = m.sample()
-        log_prob = m.log_prob(action)
-        return action.item(), log_prob.item()
+    def compute_target_values(self, n_plus_1_state):
+        self.memo.compute_returns(n_plus_1_state, self.n_env, self.gamma)
+
+    def feed_forward(self, state):
+        prob, value = self.policy_net(state)
+        dist = Categorical(prob)
+        action = dist.sample()
+        log_prob = dist.log_prob(action)
+        return action, log_prob, value, dist.entropy().mean()
 
     def learn(self):
-        print("I am learning now......")
-        state_arr, action_arr, old_prob_arr, reward_arr, batches = self.memo.generate_index_batches()
+        state_tensor = T.cat(self.memo.states)
+        actions_tensor = T.cat(self.memo.actions)
+        old_log_probs_tensor = T.cat(self.memo.log_probs).to(device).detach()
+        old_values_tensor = T.cat(self.memo.values).detach()
 
-        #calculate advantage
-        r = 0
-        returns = []
-        for r_pi in reward_arr[::-1]:
-            if r_pi == 0:
-                r = r_pi + self.gamma * r
-            else:
-                r = r_pi
-            returns.insert(0, r)
-        returns = T.tensor(returns, device=device)
-        Avantage = (returns - returns.mean()) / (returns.std()+T.tensor(1e-5, device=device))
 
-        for _ in range(self.n_epoch):
-            for batch in batches:
-                states_batch = T.from_numpy(state_arr[batch]).to(device)
-                old_log_probs_batch = T.tensor(old_prob_arr[batch], device=device)
-                actions_batch = T.tensor(action_arr[batch], device=device)
+        advantages = self.memo.target_values_tensor - old_values_tensor
 
-                new_probs_batch = self.policy(states_batch)
-                new_probs_batch = Categorical(new_probs_batch)
-                new_log_probs_batch = new_probs_batch.log_prob(actions_batch)
-                prob_ratios_batch = (new_log_probs_batch - old_log_probs_batch).exp()
-                L_CPI = prob_ratios_batch * Avantage[batch]
-                L_CLIP = T.clamp(prob_ratios_batch, 1-self.epsilon, 1+self.epsilon) * Avantage[batch]
-                loss = - T.min(L_CPI, L_CLIP).sum()
-                self.policy.optimizer.zero_grad()
-                loss.backward()
-                self.policy.optimizer.step()
+        for _ in range(self.ppo_step):
+            new_prob, new_values = self.policy_net(state_tensor)
+            dist = Categorical(new_prob)
+            new_log_prob = dist.log_prob(actions_tensor)
+            new_entropy = dist.entropy().mean()
+            new_values = new_values.view(self.n_env*self.n_step, )
+            ratio = (new_log_prob-old_log_probs_tensor.detach()).exp()
+            surr1 = ratio * advantages
+            surr2 = T.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param) * advantages
 
-        self.memo.clear_memory()
+            #compute loss
+            actor_loss  = - T.min(surr1, surr2).mean()
+            critic_loss = (self.memo.target_values_tensor - new_values).pow(2).mean()
+            loss = actor_loss + 0.5*critic_loss - 0.001*new_entropy
 
-    def calcPerformance(self, ep_reward, epoch):
-        self.recent_rewards.append(ep_reward)
-        if len(self.recent_rewards) > 30:
-            self.recent_rewards.pop(0)
-        aver_reward = mean(self.recent_rewards)
-        if epoch % 10 == 0:
-            self.writer.add_scalar("The Average Reward (recent 30 episodes)", aver_reward, epoch)
-        print('Episode {}\tReward: {:.2f}\tThe Average Reward (recent 30 episodes): {:.2f}'.format(epoch, ep_reward, aver_reward))
+            self.policy_net.optimizer.zero_grad()
+            loss.backward()
+            T.nn.utils.clip_grad_norm_(self.policy_net.parameters(), 0.5)
+            self.policy_net.optimizer.step()
+
+
+        self.memo.clear()
+
+    def calcPerformance(self, aver_reward, step):
+        self.writer.add_scalar("The Average Reward (10 episodes)", aver_reward, step)
+        print('In Step: {}\t The Average Reward (10 episodes): {:.2f}'.format(step, aver_reward))
+
 
     def flushTBSummary(self):
         self.writer.flush()
 
     def train_mode(self):
-        self.policy.train()
+        self.policy_net.train()
 
     def test_mode(self):
-        self.policy.eval()
+        self.policy_net.eval()
+
